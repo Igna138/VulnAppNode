@@ -1,8 +1,18 @@
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo "Instalando dependencias de Node.js..."
+      - npm install
+      - echo "Instalando Snyk CLI..."
+      - npm install -g snyk
   pre_build:
     commands:
+      - echo "Autenticando con Snyk..."
+      - snyk auth $SNYK_TOKEN
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 833185305243.dkr.ecr.eu-north-1.amazonaws.com
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
@@ -10,6 +20,9 @@ phases:
   build:
     commands:
       - echo Build started on `date`
+      - echo "Ejecutando escaneo de dependencias con Snyk..."
+      - snyk test --json > snyk-report.json || true
+      - echo "Escaneo de Snyk finalizado."
       - echo Building the Docker image...
       - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
       - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
@@ -21,4 +34,6 @@ phases:
       - echo Writing image definitions file...
       - printf '[{"name":"vulnnodeapp-container","imageUri":"%s"}]' 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
 artifacts:
-  files: imagedefinitions.json
+  files: 
+    - imagedefinitions.json
+    - snyk-report.json
