@@ -17,7 +17,7 @@ phases:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker image...
-      - docker push $REPOSITORY_URI/$IMAGE_REPO_NAME:$IMAGE_TAG
+      - docker push 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       - echo Writing image definitions file...
       - printf '[{"name":"vulnnodeapp-container","imageUri":"%s"}]' 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
 artifacts:
