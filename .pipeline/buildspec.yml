@@ -4,6 +4,7 @@ phases:
   install:
     runtime-versions:
       nodejs: 18
+      golang: 1.24
     commands:
       - echo "Instalando dependencias de Node.js..."
       - npm install
@@ -13,6 +14,15 @@ phases:
       - pip install semgrep
       - echo "Instalando Trivy..."
       - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      - echo "Instalando dependencias"
+      - yum install -y make git
+      - echo "Instalando Gitleaks..."
+      - git clone https://github.com/gitleaks/gitleaks.git
+      - chmod +x gitleaks
+      - cd gitleaks
+      - echo "Compilando Gitleaks"
+      - make build
+
 
   pre_build:
     commands:
@@ -48,9 +58,13 @@ phases:
       - echo "Escaneando contenedor Docker con Trivy..."
       - trivy image --format json --output trivy-report.json 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG || true
 
+      - echo "Ejecutando Gitleaks"
+      - gitleaks detect --source . --report-format json --report-path gitleaks-report.json || true
+
 artifacts:
   files:
     - snyk-report.json
     - semgrep-report.json
     - trivy-report.json
     - imagedefinitions.json
+    - gitleaks-report.json
