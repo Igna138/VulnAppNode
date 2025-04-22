@@ -19,9 +19,8 @@ phases:
       - echo "Instalando Gitleaks..."
       - git clone https://github.com/gitleaks/gitleaks.git
       - chmod +x gitleaks
-      - cd gitleaks
       - echo "Compilando Gitleaks"
-      - make build
+      - cd gitleaks && make build && cp gitleaks ../gitleaks && cd ..
 
 
   pre_build:
