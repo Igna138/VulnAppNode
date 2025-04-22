@@ -9,31 +9,43 @@ phases:
       - npm install
       - echo "Instalando Snyk CLI..."
       - npm install -g snyk
+      - echo "Instalando Semgrep..."
+      - pip install semgrep
+
   pre_build:
     commands:
       - echo "Autenticando con Snyk..."
       - snyk auth $SNYK_TOKEN
-      - echo Logging in to Amazon ECR...
+      - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 833185305243.dkr.ecr.eu-north-1.amazonaws.com
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_REPO_NAME=repositorio/vulnodeapp
+
   build:
     commands:
-      - echo Build started on `date`
+      - echo "Build started on `date`"
       - echo "Ejecutando escaneo de dependencias con Snyk..."
       - snyk test --json > snyk-report.json || true
       - echo "Escaneo de Snyk finalizado."
-      - echo Building the Docker image...
+
+      - echo "Ejecutando análisis SAST con Semgrep..."
+      - semgrep --config auto --json --output semgrep-report.json || true
+      - echo "Análisis con Semgrep finalizado."
+
+      - echo "Building the Docker image..."
       - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
       - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+
   post_build:
     commands:
-      - echo Build completed on `date`
-      - echo Pushing the Docker image...
+      - echo "Build completed on `date`"
+      - echo "Pushing the Docker image..."
       - docker push 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - echo Writing image definitions file...
+      - echo "Writing image definitions file..."
       - printf '[{"name":"vulnnodeapp-container","imageUri":"%s"}]' 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
+
 artifacts:
   files: 
     - imagedefinitions.json
     - snyk-report.json
+    - semgrep-report.json
