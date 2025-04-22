@@ -11,41 +11,46 @@ phases:
       - npm install -g snyk
       - echo "Instalando Semgrep..."
       - pip install semgrep
+      - echo "Instalando Trivy..."
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
   pre_build:
     commands:
       - echo "Autenticando con Snyk..."
       - snyk auth $SNYK_TOKEN
-      - echo "Logging in to Amazon ECR..."
+      - echo "Logueando en Amazon ECR..."
       - aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 833185305243.dkr.ecr.eu-north-1.amazonaws.com
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_REPO_NAME=repositorio/vulnodeapp
 
   build:
     commands:
-      - echo "Build started on `date`"
-      - echo "Ejecutando escaneo de dependencias con Snyk..."
+      - echo "Build iniciado el `date`"
+      - echo "Escaneando dependencias con Snyk..."
       - snyk test --json > snyk-report.json || true
-      - echo "Escaneo de Snyk finalizado."
+      - echo "Escaneo de Snyk completado."
 
       - echo "Ejecutando análisis SAST con Semgrep..."
       - semgrep --config auto --json --output semgrep-report.json || true
-      - echo "Análisis con Semgrep finalizado."
 
-      - echo "Building the Docker image..."
+      - echo "Construyendo imagen Docker..."
       - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
       - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo "Build completed on `date`"
-      - echo "Pushing the Docker image..."
+      - echo "Push de imagen a ECR..."
       - docker push 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-      - echo "Writing image definitions file..."
+
+      - echo "Escribiendo archivo de definición..."
       - printf '[{"name":"vulnnodeapp-container","imageUri":"%s"}]' 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG > imagedefinitions.json
 
+      - echo "Escaneando contenedor Docker con Trivy..."
+      - trivy image --format json --output trivy-report.json 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG || true
+
 artifacts:
-  files: 
-    - imagedefinitions.json
+  files:
     - snyk-report.json
     - semgrep-report.json
+    - trivy-report.json
+    - imagedefinitions.json
