@@ -60,7 +60,7 @@ phases:
       - trivy image --format json --output trivy-report.json 833185305243.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG || true
 
       - echo "Ejecutando Gitleaks"
-      - ./gitleaks/gitleaks detect --source . --report-format json --report-path gitleaks-report.json || true
+      - ./gitleaks/gitleaks detect --no-git --source . --report-format json --report-path gitleaks-report.json || true
 
 artifacts:
   files:
